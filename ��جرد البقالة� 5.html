@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>جرد البقالة</title>
+<!-- مكتبة الإكسل الأساسية (مسموحة داخل عارض كلود وبكل المتصفحات) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- نسخة تدعم الألوان (تشتغل خارج كلود، ولو انحجبت ما تأثر لأن الأساسية موجودة) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
+<style>
+  :root{
+    --green:#1a7f4e; --green-dark:#145c39; --red:#c0392b; --orange:#e08b1a;
+    --bg:#f3f5f4; --card:#ffffff; --border:#e0e4e2; --text:#1f2a24; --muted:#6b756f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,"SF Pro Text","Segoe UI",Tahoma,Arial,sans-serif;
+    padding-bottom:40px;
+  }
+  header{
+    background:linear-gradient(135deg,var(--green),var(--green-dark));
+    color:#fff; padding:16px 16px 12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  header h1{margin:0; font-size:19px; font-weight:700;}
+  header p{margin:4px 0 0; font-size:12px; opacity:.9;}
+
+  #storageBanner{
+    display:none; background:var(--red); color:#fff; padding:10px 14px;
+    font-size:12.5px; text-align:center; line-height:1.6;
+  }
+
+  .summary{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+    padding:12px 12px 0;
+  }
+  .sum-card{
+    background:var(--card); border-radius:12px; padding:10px 4px; text-align:center;
+    border:1px solid var(--border);
+  }
+  .sum-card .num{font-size:18px; font-weight:800;}
+  .sum-card .lbl{font-size:10.5px; color:var(--muted); margin-top:2px;}
+  .sum-card.warn .num{color:var(--orange);}
+  .sum-card.danger .num{color:var(--red);}
+
+  .container{padding:14px 12px;}
+  .card{
+    background:var(--card); border-radius:14px; padding:14px;
+    border:1px solid var(--border); margin-bottom:14px;
+  }
+  .card h2{margin:0 0 12px; font-size:15px;}
+
+  label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:4px; font-weight:600;}
+  input{
+    width:100%; padding:11px 10px; border-radius:10px; border:1.5px solid var(--border);
+    font-size:16px; background:#fafcfb; margin-bottom:10px; color:var(--text);
+    direction:rtl;
+  }
+  input.ltr-nums{direction:ltr; text-align:right;}
+  input:focus{outline:none; border-color:var(--green);}
+
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  .hint{font-size:11.5px; color:var(--muted); margin:-4px 0 10px;}
+  .hint.ok{color:var(--green-dark);}
+  .hint.bad{color:var(--red);}
+  .hint.warn{color:var(--orange);}
+
+  .total-preview{
+    background:#eaf6ef; border:1.5px dashed var(--green); border-radius:10px;
+    padding:10px; text-align:center; margin-bottom:12px; font-size:14px;
+  }
+  .total-preview b{font-size:20px; color:var(--green-dark);}
+
+  .btn{
+    width:100%; padding:13px; border:none; border-radius:12px; font-size:15.5px;
+    font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  .btn-main{background:var(--green); color:#fff;}
+  .btn-main:active{background:var(--green-dark);}
+  .btn-secondary{background:#eef1f0; color:var(--text); margin-top:8px;}
+  .btn-danger{background:#fdecea; color:var(--red); margin-top:10px;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:10px;}
+  .tab{
+    flex:1; text-align:center; padding:9px; border-radius:10px; background:#eef1f0;
+    font-size:13px; font-weight:700; color:var(--muted); cursor:pointer;
+  }
+  .tab.active{background:var(--green); color:#fff;}
+
+  .entry{
+    border:1.5px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px;
+  }
+  .entry.expired{border-color:var(--red); background:#fdf1f0;}
+  .entry.soon{border-color:var(--orange); background:#fdf6ec;}
+  .entry-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .entry-name{font-weight:700; font-size:14.5px;}
+  .entry-barcode{font-size:11.5px; color:var(--muted); direction:ltr; text-align:right;}
+  .badge{
+    font-size:10.5px; padding:3px 8px; border-radius:20px; font-weight:700; white-space:nowrap;
+  }
+  .badge.ok{background:#e4f5eb; color:var(--green-dark);}
+  .badge.soon{background:#fcecd4; color:#a86a10;}
+  .badge.expired{background:#fbe2df; color:var(--red);}
+  .entry-details{
+    display:flex; flex-wrap:wrap; gap:10px; font-size:12.5px; color:var(--muted); margin-top:6px;
+  }
+  .entry-details b{color:var(--text);}
+  .entry-actions{display:flex; gap:6px; margin-top:8px;}
+  .icon-btn{
+    flex:1; text-align:center; padding:7px; border-radius:8px; font-size:12px; font-weight:700;
+    background:#eef1f0; color:var(--text); cursor:pointer; border:none;
+  }
+  .icon-btn.del{background:#fdecea; color:var(--red);}
+  .icon-btn.edit{background:#e8f0fd; color:#1a5fb4;}
+
+  .product-group{
+    border:1.5px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px;
+  }
+  .g-top{display:flex; justify-content:space-between; align-items:center;}
+  .g-name{font-weight:700; font-size:14.5px;}
+  .g-sub{font-size:11.5px; color:var(--muted); margin-top:2px;}
+  .g-total{font-weight:800; color:var(--green-dark); font-size:16px;}
+  .exp-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 0; border-top:1px solid var(--border); font-size:12.5px; margin-top:6px;
+  }
+
+  .empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:13.5px;}
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:#1f2a24; color:#fff; padding:10px 18px; border-radius:30px; font-size:13px;
+    z-index:100; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90%;
+    text-align:center;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="storageBanner"></div>
+
+<header>
+  <h1>📦 جرد البقالة</h1>
+  <p>كراتين + قطع مفردة | تواريخ انتهاء متعددة | باركود حبة وكرتون</p>
+  <p id="jsStatus" style="margin-top:6px; background:rgba(255,255,255,.18); border-radius:8px; padding:5px 8px; font-size:11.5px;">⏳ جارٍ التشغيل... لو ظلت هذي الرسالة ظاهرة، معناه العارض اللي فتحت منه الملف يمنع تشغيل التطبيق — جرب تفتحه من مكان ثاني</p>
+</header>
+
+<div class="summary" id="summaryCards"></div>
+
+<div class="container">
+
+  <!-- نموذج الإدخال -->
+  <div class="card">
+    <h2>➕ <span id="formTitle">إضافة دفعة جديدة</span></h2>
+
+    <div class="row2">
+      <div>
+        <label>باركود الحبة (القطعة)</label>
+        <input type="text" id="pieceBarcode" class="ltr-nums" inputmode="numeric" placeholder="باركود القطعة" autocomplete="off">
+      </div>
+      <div>
+        <label>باركود الكرتون</label>
+        <input type="text" id="cartonBarcode" class="ltr-nums" inputmode="numeric" placeholder="لو مختلف" autocomplete="off">
+      </div>
+    </div>
+    <div class="hint" id="barcodeInfo">أدخل باركود واحد على الأقل — لو للمنتج باركودين (حبة وكرتون) اكتبهم وبينربطون تلقائياً</div>
+
+    <label>اسم المنتج</label>
+    <input type="text" id="productName" placeholder="اسم المنتج" autocomplete="off">
+
+    <div class="row2">
+      <div>
+        <label>القطع بالكرتون (اختياري)</label>
+        <input type="text" id="unitsPerCarton" class="ltr-nums" inputmode="numeric" placeholder="مثال: 24" autocomplete="off">
+      </div>
+      <div>
+        <label>تاريخ الانتهاء</label>
+        <input type="text" id="expiryDate" class="ltr-nums" inputmode="numeric" placeholder="مثال: 15/8" autocomplete="off">
+      </div>
+    </div>
+    <div class="hint" id="expiryPreview">اكتب اليوم والشهر بس (15/8 أو 1508)، والسنة تنحط 2026 تلقائي</div>
+
+    <div class="row2">
+      <div>
+        <label>عدد الكراتين المغلقة</label>
+        <input type="text" id="closedCartons" class="ltr-nums" inputmode="numeric" value="0" autocomplete="off">
+      </div>
+      <div>
+        <label>قطع مفردة (كرتون مفتوح)</label>
+        <input type="text" id="loosePieces" class="ltr-nums" inputmode="numeric" value="0" autocomplete="off">
+      </div>
+    </div>
+    <div class="hint">الإجمالي = (الكراتين × القطع بالكرتون) + المفرد</div>
+    <div class="hint warn" id="totalNote" style="display:none">⚠️ ما حددت القطع بالكرتون — بيحسب كل كرتون كقطعة وحدة</div>
+
+    <div class="total-preview">الإجمالي بالقطعة: <b id="totalPreview">0</b></div>
+
+    <button class="btn btn-main" id="saveBtn" type="button">إضافة الدفعة</button>
+    <button class="btn btn-secondary" id="cancelEditBtn" type="button" style="display:none">إلغاء التعديل</button>
+  </div>
+
+  <!-- التبويبات والقائمة -->
+  <div class="tabs">
+    <div class="tab active" id="tabBatches">كل الدفعات</div>
+    <div class="tab" id="tabProducts">حسب المنتج</div>
+  </div>
+
+  <div class="card">
+    <input type="text" id="searchBox" placeholder="🔍 بحث بالاسم أو الباركود" autocomplete="off">
+    <div id="listContainer"></div>
+  </div>
+
+  <!-- التصدير والإدارة -->
+  <div class="card">
+    <h2>📤 التصدير والإدارة</h2>
+    <button class="btn btn-main" id="exportBtn" type="button">تصدير إلى إكسل</button>
+    <button class="btn btn-danger" id="clearAllBtn" type="button">🗑️ مسح كل بيانات الجرد</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   1) أدوات الأرقام: تحويل أي رقم عربي/فارسي إلى إنجليزي
+   ============================================================ */
+var AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+var FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+
+function toEn(str){
+  if(str === null || str === undefined) return '';
+  var out = '';
+  var s = String(str);
+  for(var i = 0; i < s.length; i++){
+    var ch = s.charAt(i);
+    var idx = AR_DIGITS.indexOf(ch);
+    if(idx === -1) idx = FA_DIGITS.indexOf(ch);
+    out += (idx === -1) ? ch : String(idx);
+  }
+  return out;
+}
+
+// يقرأ قيمة حقل بعد تحويل أرقامه للإنجليزي (طبقة الحماية الأساسية - تشتغل دايماً)
+function readField(id){
+  return toEn(document.getElementById(id).value).trim();
+}
+function readNum(id){
+  var v = parseFloat(readField(id));
+  return isNaN(v) ? 0 : v;
+}
+
+// تحويل مباشر داخل الحقل أثناء الكتابة (طبقة تجميلية - لو فشلت، readField يحمي البيانات)
+function attachLiveConvert(id){
+  var el = document.getElementById(id);
+  function fix(){
+    var converted = toEn(el.value);
+    if(converted !== el.value){
+      var pos = el.selectionStart;
+      el.value = converted;
+      try{ el.setSelectionRange(pos, pos); }catch(e){}
+    }
+  }
+  ['input','keyup','change','blur','paste'].forEach(function(evt){
+    el.addEventListener(evt, function(){ setTimeout(fix, 0); });
+  });
+}
+
+/* ============================================================
+   2) طبقة تخزين ذكية تدعم ثلاث بيئات:
+   - 'artifact': تخزين كلود الدائم (لما تفتح الملف داخل تطبيق كلود)
+   - 'local':    localStorage العادي (متصفح عادي)
+   - 'memory':   ذاكرة مؤقتة فقط (لما يمنع Safari الحفظ)
+   ============================================================ */
+var memStore = {};
+var storageMode = 'memory';
+
+(function detectStorage(){
+  try{
+    if(typeof window !== 'undefined' && window.storage && typeof window.storage.set === 'function'){
+      storageMode = 'artifact';
+      return;
+    }
+  }catch(e){}
+  try{
+    localStorage.setItem('__t__','1');
+    localStorage.removeItem('__t__');
+    storageMode = 'local';
+  }catch(e){ storageMode = 'memory'; }
+})();
+
+/* ============================================================
+   3) البيانات
+   batches: [{id, canonicalId, name, unitsPerCarton, closedCartons, loosePieces, total, expiry}]
+   products: canonicalId -> {name, unitsPerCarton, pieceBarcode, cartonBarcode}
+   barcodeIndex: أي باركود -> canonicalId
+   ============================================================ */
+var batches = [];
+var products = {};
+var barcodeIndex = {};
+var editingId = null;
+var currentTab = 'batches';
+
+function applyPayload(str){
+  if(!str) return;
+  try{
+    var d = JSON.parse(str);
+    batches = d.batches || [];
+    products = d.products || {};
+    barcodeIndex = d.barcodeIndex || {};
+  }catch(e){}
+}
+
+function migrateOldShape(){
+  var changed = false;
+  batches.forEach(function(b){
+    if(!b.canonicalId && b.barcode){ b.canonicalId = b.barcode; delete b.barcode; changed = true; }
+  });
+  Object.keys(products).forEach(function(id){
+    var p = products[id];
+    if(p.pieceBarcode === undefined){ p.pieceBarcode = id; p.cartonBarcode = p.cartonBarcode || ''; changed = true; }
+    if(!barcodeIndex[id]){ barcodeIndex[id] = id; changed = true; }
+  });
+  if(changed) saveData();
+}
+
+// التحميل: لاتزامني ببيئة كلود، فوري بالمتصفح — يستدعي done() بالحالتين
+function loadData(done){
+  if(storageMode === 'artifact'){
+    window.storage.get('inv_data').then(function(r){
+      if(r && r.value) applyPayload(r.value);
+      migrateOldShape();
+      done();
+    }, function(){
+      // المفتاح غير موجود بعد (أول استخدام) — طبيعي
+      done();
+    });
+    return;
+  }
+  if(storageMode === 'local'){
+    try{
+      var v = localStorage.getItem('inv_data');
+      if(v){ applyPayload(v); }
+      else {
+        // ترحيل من مفاتيح النسخ القديمة إن وجدت
+        var oldB = localStorage.getItem('inv_batches') || localStorage.getItem('stocktake_batches');
+        if(oldB){
+          batches = JSON.parse(oldB || '[]');
+          products = JSON.parse(localStorage.getItem('inv_products') || localStorage.getItem('stocktake_products') || '{}');
+          barcodeIndex = JSON.parse(localStorage.getItem('inv_index') || localStorage.getItem('stocktake_barcode_index') || '{}');
+          saveData();
+        }
+      }
+    }catch(e){}
+    migrateOldShape();
+  }
+  done();
+}
+
+var saveErrorShown = false;
+function saveData(){
+  var payload = JSON.stringify({batches:batches, products:products, barcodeIndex:barcodeIndex});
+  memStore.inv_data = payload;
+  if(storageMode === 'artifact'){
+    window.storage.set('inv_data', payload).then(null, function(){
+      if(!saveErrorShown){ saveErrorShown = true; toast('⚠️ تعذر الحفظ الدائم — صدّر إكسل احتياطياً'); }
+    });
+  } else if(storageMode === 'local'){
+    try{ localStorage.setItem('inv_data', payload); }catch(e){}
+  }
+}
+
+/* ============================================================
+   4) أدوات مساعدة
+   ============================================================ */
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2000);
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+
+function fmtNum(n){
+  return Number(n).toLocaleString('en-US');
+}
+
+function daysLeft(iso){
+  var today = new Date(); today.setHours(0,0,0,0);
+  var parts = iso.split('-');
+  var exp = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+  return Math.round((exp - today) / 86400000);
+}
+function statusOf(iso){
+  var d = daysLeft(iso);
+  if(d < 0) return 'expired';
+  if(d <= 30) return 'soon';
+  return 'ok';
+}
+function statusLabel(iso){
+  var d = daysLeft(iso);
+  if(d < 0) return 'منتهي منذ ' + Math.abs(d) + ' يوم';
+  if(d === 0) return 'ينتهي اليوم';
+  return 'باقي ' + d + ' يوم';
+}
+function statusText(iso){
+  var s = statusOf(iso);
+  return s === 'expired' ? 'منتهي' : (s === 'soon' ? 'قريب الانتهاء' : 'سليم');
+}
+
+/* ============================================================
+   5) التاريخ المرن: 15/8 أو 1508 أو 15/8/2026 ... السنة تلقائية
+   ============================================================ */
+var DEFAULT_YEAR = 2026;
+var MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+function parseDate(raw){
+  if(!raw) return null;
+  var s = toEn(raw).trim();
+  var day, month, year;
+  var parts = s.split(/[\/\-\.\s]+/).filter(function(x){ return x.length > 0; });
+
+  if(parts.length >= 2){
+    if(parts[0].length === 4){ // سنة-شهر-يوم
+      year = parseInt(parts[0],10); month = parseInt(parts[1],10); day = parseInt(parts[2]||'0',10);
+    } else {
+      day = parseInt(parts[0],10); month = parseInt(parts[1],10);
+      year = parts[2] ? parseInt(parts[2],10) : DEFAULT_YEAR;
+    }
+  } else {
+    var d = s.replace(/\D/g,'');
+    if(d.length === 3){ day = parseInt(d.slice(0,1),10); month = parseInt(d.slice(1,3),10); year = DEFAULT_YEAR; }
+    else if(d.length === 4){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = DEFAULT_YEAR; }
+    else if(d.length === 6){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = 2000 + parseInt(d.slice(4,6),10); }
+    else if(d.length === 8){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = parseInt(d.slice(4,8),10); }
+    else return null;
+  }
+
+  if(year < 100) year += 2000;
+  if(!day || !month || month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  var check = new Date(year, month-1, day);
+  if(check.getFullYear() !== year || check.getMonth() !== month-1 || check.getDate() !== day) return null;
+
+  return year + '-' + String(month).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+}
+
+function isoDisplay(iso){
+  if(!iso) return '';
+  var p = iso.split('-');
+  return parseInt(p[2],10) + '/' + parseInt(p[1],10) + '/' + p[0];
+}
+
+/* ============================================================
+   6) منطق الباركود المزدوج والربط
+   ============================================================ */
+function resolveId(bc){
+  return bc ? (barcodeIndex[bc] || null) : null;
+}
+function normName(s){
+  return String(s).trim().replace(/\s+/g,' ');
+}
+function barcodesText(id){
+  var p = products[id] || {};
+  var parts = [];
+  if(p.pieceBarcode) parts.push('حبة: ' + p.pieceBarcode);
+  if(p.cartonBarcode) parts.push('كرتون: ' + p.cartonBarcode);
+  return parts.length ? parts.join(' • ') : id;
+}
+
+/* ============================================================
+   7) الحسابات
+   ============================================================ */
+function computeTotal(cartons, upc, loose){
+  if(upc > 0) return (cartons * upc) + loose;
+  return cartons + loose; // لو ما حدد القطع بالكرتون، كل كرتون = قطعة
+}
+
+/* ============================================================
+   8) الواجهة: معاينات حية
+   ============================================================ */
+function updateTotalPreview(){
+  var cartons = readNum('closedCartons');
+  var upc = readNum('unitsPerCarton');
+  var loose = readNum('loosePieces');
+  document.getElementById('totalPreview').textContent = fmtNum(computeTotal(cartons, upc, loose));
+  document.getElementById('totalNote').style.display = (cartons > 0 && upc <= 0) ? 'block' : 'none';
+}
+
+function updateExpiryPreview(){
+  var raw = readField('expiryDate');
+  var el = document.getElementById('expiryPreview');
+  if(!raw){
+    el.textContent = 'اكتب اليوم والشهر بس (15/8 أو 1508)، والسنة تنحط 2026 تلقائي';
+    el.className = 'hint';
+    return;
+  }
+  var iso = parseDate(raw);
+  if(!iso){
+    el.textContent = '⚠️ تاريخ غير مفهوم — جرب مثل 15/8';
+    el.className = 'hint bad';
+  } else {
+    var p = iso.split('-');
+    el.textContent = '📅 هيُحفظ: ' + parseInt(p[2],10) + ' ' + MONTHS_AR[parseInt(p[1],10)-1] + ' ' + p[0];
+    el.className = 'hint ok';
+  }
+}
+
+function updateBarcodeInfo(){
+  var pieceBc = readField('pieceBarcode');
+  var cartonBc = readField('cartonBarcode');
+  var el = document.getElementById('barcodeInfo');
+
+  if(!pieceBc && !cartonBc){
+    el.textContent = 'أدخل باركود واحد على الأقل — لو للمنتج باركودين (حبة وكرتون) اكتبهم وبينربطون تلقائياً';
+    el.className = 'hint';
+    return;
+  }
+  var id = resolveId(pieceBc) || resolveId(cartonBc);
+  if(!id){
+    el.textContent = 'منتج جديد — ما له دفعات مسجلة';
+    el.className = 'hint';
+    return;
+  }
+  var p = products[id] || {};
+  var linked = (p.pieceBarcode && p.cartonBarcode) ? '🔗 حبة ' + p.pieceBarcode + ' = كرتون ' + p.cartonBarcode + '. ' : '';
+  var list = batches.filter(function(b){ return b.canonicalId === id && b.id !== editingId; });
+  if(list.length === 0){
+    el.textContent = linked + 'منتج معروف، ما له دفعات جرد بعد';
+    el.className = 'hint ok';
+    return;
+  }
+  list.sort(function(a,b){ return daysLeft(a.expiry) - daysLeft(b.expiry); });
+  var txt = list.map(function(b){ return isoDisplay(b.expiry) + ' (' + fmtNum(b.total) + ' قطعة)'; }).join(' • ');
+  el.textContent = '📋 مسجل بـ' + list.length + ' تاريخ: ' + txt;
+  el.className = 'hint ok';
+}
+
+function autoFillFromBarcode(){
+  var pieceBc = readField('pieceBarcode');
+  var cartonBc = readField('cartonBarcode');
+  var id = resolveId(pieceBc) || resolveId(cartonBc);
+  if(id && products[id]){
+    var p = products[id];
+    document.getElementById('productName').value = p.name;
+    if(p.unitsPerCarton) document.getElementById('unitsPerCarton').value = p.unitsPerCarton;
+    if(!pieceBc && p.pieceBarcode) document.getElementById('pieceBarcode').value = p.pieceBarcode;
+    if(!cartonBc && p.cartonBarcode) document.getElementById('cartonBarcode').value = p.cartonBarcode;
+  }
+  updateBarcodeInfo();
+}
+
+/* ============================================================
+   9) الحفظ / التعديل / الحذف
+   ============================================================ */
+function saveEntry(){
+  var pieceBc = readField('pieceBarcode');
+  var cartonBc = readField('cartonBarcode');
+  var name = document.getElementById('productName').value.trim();
+  var upc = readNum('unitsPerCarton');
+  var cartons = readNum('closedCartons');
+  var loose = readNum('loosePieces');
+  var expiryRaw = readField('expiryDate');
+
+  if(!pieceBc && !cartonBc){ toast('لازم باركود واحد على الأقل (حبة أو كرتون)'); return; }
+  if(!name){ toast('لازم اسم المنتج'); return; }
+  if(!expiryRaw){ toast('لازم تاريخ الانتهاء'); return; }
+  var expiry = parseDate(expiryRaw);
+  if(!expiry){ toast('⚠️ التاريخ غير مفهوم — جرب مثل 15/8'); return; }
+  if(cartons <= 0 && loose <= 0){ toast('لازم كمية (كراتين أو قطع)'); return; }
+
+  var total = computeTotal(cartons, upc, loose);
+
+  // تحديد هوية المنتج
+  var canonicalId = resolveId(pieceBc) || resolveId(cartonBc);
+  if(!canonicalId){
+    // باركود جديد: هل فيه منتج بنفس الاسم؟ (احتمال باركود ثاني لنفس المنتج)
+    var nn = normName(name);
+    var matchId = null;
+    var ids = Object.keys(products);
+    for(var i=0;i<ids.length;i++){
+      if(normName(products[ids[i]].name) === nn){ matchId = ids[i]; break; }
+    }
+    if(matchId){
+      var ok = confirm('فيه منتج بنفس الاسم "' + name + '" مسجل بباركود مختلف (' + barcodesText(matchId) + ').\n\nنفس المنتج؟\nموافق = اربطهم كمنتج واحد\nإلغاء = سجله منتج منفصل');
+      if(ok) canonicalId = matchId;
+    }
+  }
+  if(!canonicalId) canonicalId = pieceBc || cartonBc;
+
+  if(pieceBc) barcodeIndex[pieceBc] = canonicalId;
+  if(cartonBc) barcodeIndex[cartonBc] = canonicalId;
+
+  var prev = products[canonicalId] || {};
+  products[canonicalId] = {
+    name: name,
+    unitsPerCarton: upc || prev.unitsPerCarton || 0,
+    pieceBarcode: pieceBc || prev.pieceBarcode || '',
+    cartonBarcode: cartonBc || prev.cartonBarcode || ''
+  };
+
+  if(editingId){
+    var idx = -1;
+    for(var j=0;j<batches.length;j++){ if(batches[j].id === editingId){ idx = j; break; } }
+    if(idx > -1){
+      var dup = null;
+      for(var k=0;k<batches.length;k++){
+        var bb = batches[k];
+        if(bb.id !== editingId && bb.canonicalId === canonicalId && bb.expiry === expiry){ dup = bb; break; }
+      }
+      if(dup){
+        dup.closedCartons += cartons;
+        dup.loosePieces += loose;
+        dup.total += total;
+        dup.unitsPerCarton = upc || dup.unitsPerCarton;
+        dup.name = name;
+        batches.splice(idx,1);
+        toast('اندمجت مع دفعة موجودة بنفس التاريخ ✅');
+      } else {
+        var old = batches[idx];
+        old.canonicalId = canonicalId;
+        old.name = name;
+        old.unitsPerCarton = upc;
+        old.closedCartons = cartons;
+        old.loosePieces = loose;
+        old.total = total;
+        old.expiry = expiry;
+        toast('تم تحديث الدفعة ✅');
+      }
+    }
+    cancelEdit();
+  } else {
+    var existing = null;
+    for(var m=0;m<batches.length;m++){
+      var eb = batches[m];
+      if(eb.canonicalId === canonicalId && eb.expiry === expiry){ existing = eb; break; }
+    }
+    if(existing){
+      existing.closedCartons += cartons;
+      existing.loosePieces += loose;
+      existing.total += total;
+      existing.unitsPerCarton = upc || existing.unitsPerCarton;
+      existing.name = name;
+      toast('نفس المنتج ونفس التاريخ — اندمجت الكمية ✅ (الإجمالي: ' + fmtNum(existing.total) + ')');
+    } else {
+      batches.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        canonicalId: canonicalId,
+        name: name,
+        unitsPerCarton: upc,
+        closedCartons: cartons,
+        loosePieces: loose,
+        total: total,
+        expiry: expiry
+      });
+      toast('تمت الإضافة ✅ (' + fmtNum(total) + ' قطعة)');
+    }
+  }
+
+  saveData();
+  clearForm(false);
+  render();
+}
+
+function clearForm(clearBarcodes){
+  if(clearBarcodes !== false){
+    document.getElementById('pieceBarcode').value = '';
+    document.getElementById('cartonBarcode').value = '';
+  }
+  document.getElementById('productName').value = '';
+  document.getElementById('unitsPerCarton').value = '';
+  document.getElementById('closedCartons').value = '0';
+  document.getElementById('loosePieces').value = '0';
+  document.getElementById('expiryDate').value = '';
+  updateTotalPreview();
+  updateExpiryPreview();
+  updateBarcodeInfo();
+  document.getElementById('pieceBarcode').focus();
+}
+
+function startEdit(id){
+  var b = null;
+  for(var i=0;i<batches.length;i++){ if(batches[i].id === id){ b = batches[i]; break; } }
+  if(!b) return;
+  editingId = id;
+  var p = products[b.canonicalId] || {};
+  document.getElementById('pieceBarcode').value = p.pieceBarcode || '';
+  document.getElementById('cartonBarcode').value = p.cartonBarcode || '';
+  document.getElementById('productName').value = b.name;
+  document.getElementById('unitsPerCarton').value = b.unitsPerCarton || '';
+  document.getElementById('closedCartons').value = b.closedCartons;
+  document.getElementById('loosePieces').value = b.loosePieces;
+  document.getElementById('expiryDate').value = isoDisplay(b.expiry);
+  updateTotalPreview();
+  updateExpiryPreview();
+  updateBarcodeInfo();
+  document.getElementById('formTitle').textContent = 'تعديل الدفعة';
+  document.getElementById('saveBtn').textContent = 'حفظ التعديل';
+  document.getElementById('cancelEditBtn').style.display = 'block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelEdit(){
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'إضافة دفعة جديدة';
+  document.getElementById('saveBtn').textContent = 'إضافة الدفعة';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  clearForm();
+}
+
+function deleteEntry(id){
+  if(!confirm('تحذف هذه الدفعة؟')) return;
+  batches = batches.filter(function(b){ return b.id !== id; });
+  saveData();
+  render();
+  toast('تم الحذف');
+}
+
+function clearAll(){
+  if(!confirm('تمسح كل بيانات الجرد نهائياً؟')) return;
+  if(!confirm('تأكيد أخير — ما ينفع التراجع!')) return;
+  batches = [];
+  products = {};
+  barcodeIndex = {};
+  saveData();
+  render();
+  toast('تم مسح كل البيانات');
+}
+
+/* ============================================================
+   10) العرض
+   ============================================================ */
+function render(){
+  // البطاقات العلوية
+  var totalPieces = 0;
+  var uniq = {};
+  var expired = 0, soon = 0;
+  batches.forEach(function(b){
+    totalPieces += b.total;
+    uniq[b.canonicalId] = true;
+    var s = statusOf(b.expiry);
+    if(s === 'expired') expired++;
+    else if(s === 'soon') soon++;
+  });
+  document.getElementById('summaryCards').innerHTML =
+    '<div class="sum-card"><div class="num">' + fmtNum(Object.keys(uniq).length) + '</div><div class="lbl">منتج</div></div>' +
+    '<div class="sum-card"><div class="num">' + fmtNum(totalPieces) + '</div><div class="lbl">إجمالي القطع</div></div>' +
+    '<div class="sum-card warn"><div class="num">' + fmtNum(soon) + '</div><div class="lbl">قريب الانتهاء</div></div>' +
+    '<div class="sum-card danger"><div class="num">' + fmtNum(expired) + '</div><div class="lbl">منتهي</div></div>';
+
+  // الفلترة بالبحث
+  var q = toEn(document.getElementById('searchBox').value).trim().toLowerCase();
+  var filtered = batches.filter(function(b){
+    if(!q) return true;
+    var p = products[b.canonicalId] || {};
+    return b.name.toLowerCase().indexOf(q) > -1
+      || (p.pieceBarcode||'').toLowerCase().indexOf(q) > -1
+      || (p.cartonBarcode||'').toLowerCase().indexOf(q) > -1;
+  });
+
+  var box = document.getElementById('listContainer');
+
+  if(currentTab === 'batches'){
+    if(filtered.length === 0){
+      box.innerHTML = '<div class="empty">لا توجد دفعات' + (q ? ' مطابقة للبحث' : ' مسجلة بعد') + '</div>';
+      return;
+    }
+    filtered.sort(function(a,b){ return daysLeft(a.expiry) - daysLeft(b.expiry); });
+    var html = '';
+    filtered.forEach(function(b){
+      var st = statusOf(b.expiry);
+      var badge = st === 'expired' ? 'منتهي' : (st === 'soon' ? 'قريب' : 'سليم');
+      html += '<div class="entry ' + st + '">' +
+        '<div class="entry-top"><div>' +
+          '<div class="entry-name">' + esc(b.name) + '</div>' +
+          '<div class="entry-barcode">' + esc(barcodesText(b.canonicalId)) + '</div>' +
+        '</div><span class="badge ' + st + '">' + badge + '</span></div>' +
+        '<div class="entry-details">' +
+          '<span>🧊 كراتين: <b>' + fmtNum(b.closedCartons) + '</b>' + (b.unitsPerCarton ? ' × ' + fmtNum(b.unitsPerCarton) : '') + '</span>' +
+          '<span>🔓 مفرد: <b>' + fmtNum(b.loosePieces) + '</b></span>' +
+          '<span>📦 الإجمالي: <b>' + fmtNum(b.total) + '</b></span>' +
+          '<span>📅 ' + isoDisplay(b.expiry) + ' — ' + statusLabel(b.expiry) + '</span>' +
+        '</div>' +
+        '<div class="entry-actions">' +
+          '<button class="icon-btn edit" data-edit="' + b.id + '">✏️ تعديل</button>' +
+          '<button class="icon-btn del" data-del="' + b.id + '">🗑️ حذف</button>' +
+        '</div></div>';
+    });
+    box.innerHTML = html;
+  } else {
+    // حسب المنتج: تجميع
+    var groups = {};
+    filtered.forEach(function(b){
+      if(!groups[b.canonicalId]) groups[b.canonicalId] = { name:b.name, id:b.canonicalId, total:0, exps:[] };
+      groups[b.canonicalId].total += b.total;
+      groups[b.canonicalId].exps.push({date:b.expiry, qty:b.total});
+    });
+    var list = Object.keys(groups).map(function(k){ return groups[k]; });
+    if(list.length === 0){
+      box.innerHTML = '<div class="empty">لا توجد منتجات مطابقة</div>';
+      return;
+    }
+    list.sort(function(a,b){ return a.name.localeCompare(b.name,'ar'); });
+    var html2 = '';
+    list.forEach(function(g){
+      g.exps.sort(function(a,b){ return daysLeft(a.date) - daysLeft(b.date); });
+      var rows = '';
+      g.exps.forEach(function(e){
+        var st = statusOf(e.date);
+        var badge = st === 'expired' ? 'منتهي' : (st === 'soon' ? 'قريب' : 'سليم');
+        rows += '<div class="exp-row">' +
+          '<span>📅 ' + isoDisplay(e.date) + ' <span style="color:var(--muted)">(' + statusLabel(e.date) + ')</span></span>' +
+          '<span><b>' + fmtNum(e.qty) + '</b> <span class="badge ' + st + '" style="font-size:9.5px">' + badge + '</span></span>' +
+        '</div>';
+      });
+      html2 += '<div class="product-group">' +
+        '<div class="g-top"><div>' +
+          '<div class="g-name">' + esc(g.name) + '</div>' +
+          '<div class="g-sub">' + esc(barcodesText(g.id)) + ' • ' + fmtNum(g.exps.length) + ' تاريخ انتهاء</div>' +
+        '</div><div class="g-total">' + fmtNum(g.total) + '</div></div>' +
+        rows +
+      '</div>';
+    });
+    box.innerHTML = html2;
+  }
+}
+
+/* ============================================================
+   11) تصدير الإكسل: ورقتين + تلوين مجموعات المنتجات
+   ============================================================ */
+function exportExcel(){
+  if(batches.length === 0){ toast('لا توجد بيانات للتصدير'); return; }
+  if(typeof XLSX === 'undefined'){
+    toast('⚠️ مكتبة الإكسل ما تحملت — تحتاج إنترنت أول مرة تفتح الصفحة');
+    return;
+  }
+
+  // ورقة التفاصيل: مرتبة بالاسم ثم أقرب تاريخ
+  var sorted = batches.slice().sort(function(a,b){
+    var n = a.name.localeCompare(b.name,'ar');
+    if(n !== 0) return n;
+    return daysLeft(a.expiry) - daysLeft(b.expiry);
+  });
+
+  var detailRows = sorted.map(function(b){
+    var p = products[b.canonicalId] || {};
+    return {
+      'اسم المنتج': b.name,
+      'باركود الحبة': p.pieceBarcode || '',
+      'باركود الكرتون': p.cartonBarcode || '',
+      'الكراتين المغلقة': b.closedCartons,
+      'القطع بالكرتون': b.unitsPerCarton || '',
+      'قطع مفردة': b.loosePieces,
+      'الإجمالي (قطعة)': b.total,
+      'تاريخ الانتهاء': b.expiry,
+      'الأيام المتبقية': daysLeft(b.expiry),
+      'الحالة': statusText(b.expiry)
+    };
+  });
+
+  // ورقة الملخص: منتج لكل صف مع كل تواريخه
+  var groups = {};
+  batches.forEach(function(b){
+    if(!groups[b.canonicalId]) groups[b.canonicalId] = { name:b.name, id:b.canonicalId, total:0, exps:[] };
+    groups[b.canonicalId].total += b.total;
+    groups[b.canonicalId].exps.push({date:b.expiry, qty:b.total});
+  });
+  var summaryRows = Object.keys(groups).map(function(k){ return groups[k]; })
+    .sort(function(a,b){ return a.name.localeCompare(b.name,'ar'); })
+    .map(function(g){
+      var p = products[g.id] || {};
+      g.exps.sort(function(a,b){ return daysLeft(a.date) - daysLeft(b.date); });
+      var detail = g.exps.map(function(e){ return e.date + ' (' + fmtNum(e.qty) + ' قطعة)'; }).join('  |  ');
+      return {
+        'اسم المنتج': g.name,
+        'باركود الحبة': p.pieceBarcode || '',
+        'باركود الكرتون': p.cartonBarcode || '',
+        'إجمالي القطع': g.total,
+        'عدد التواريخ': g.exps.length,
+        'أقرب تاريخ انتهاء': g.exps[0].date,
+        'حالة أقرب تاريخ': statusText(g.exps[0].date),
+        'تفصيل كل التواريخ والكميات': detail
+      };
+    });
+
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.json_to_sheet(detailRows);
+  var ws2 = XLSX.utils.json_to_sheet(summaryRows);
+
+  ws1['!cols'] = [{wch:28},{wch:16},{wch:16},{wch:14},{wch:12},{wch:10},{wch:14},{wch:13},{wch:12},{wch:14}];
+  ws2['!cols'] = [{wch:28},{wch:16},{wch:16},{wch:13},{wch:11},{wch:15},{wch:14},{wch:60}];
+
+  // تلوين رأس الجدولين: أخضر غامق بخط أبيض
+  var headStyle = { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A7F4E'}} };
+  var cols1 = Object.keys(detailRows[0]).length;
+  for(var c=0; c<cols1; c++){
+    var ref = XLSX.utils.encode_cell({r:0, c:c});
+    if(ws1[ref]) ws1[ref].s = headStyle;
+  }
+  var cols2 = Object.keys(summaryRows[0]).length;
+  for(var c2=0; c2<cols2; c2++){
+    var ref2 = XLSX.utils.encode_cell({r:0, c:c2});
+    if(ws2[ref2]) ws2[ref2].s = headStyle;
+  }
+
+  // تلوين صفوف نفس المنتج بلون واحد بالتناوب (أخضر فاتح / أزرق فاتح)
+  var colors = ['E2EFDA','DDEBF7'];
+  var ci = 0, prevName = null;
+  sorted.forEach(function(b, i){
+    if(prevName !== null && b.name !== prevName) ci = 1 - ci;
+    prevName = b.name;
+    for(var c3=0; c3<cols1; c3++){
+      var ref3 = XLSX.utils.encode_cell({r:i+1, c:c3});
+      if(ws1[ref3]) ws1[ref3].s = { fill:{fgColor:{rgb:colors[ci]}} };
+    }
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المنتجات');
+  XLSX.utils.book_append_sheet(wb, ws1, 'تفاصيل الدفعات');
+
+  var today = new Date();
+  var fname = 'جرد_البقالة_' + today.getFullYear() + '-' +
+    String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast('تم تصدير الملف ✅');
+}
+
+/* ============================================================
+   12) ربط الأحداث والتشغيل
+   ============================================================ */
+function init(){
+  // تحذير لو الحفظ الدائم ممنوع (ذاكرة مؤقتة فقط)
+  if(storageMode === 'memory'){
+    var banner = document.getElementById('storageBanner');
+    banner.style.display = 'block';
+    banner.innerHTML = '⚠️ <b>الحفظ الدائم ممنوع بهذا الوضع</b> (قيود Safari للملفات المحلية).' +
+      '<br>البيانات بتضيع لو سكّرت الصفحة! خل التاب مفتوح وصدّر إكسل بشكل متكرر.';
+  }
+
+  // تحويل الأرقام مباشرة بالحقول الرقمية
+  ['pieceBarcode','cartonBarcode','unitsPerCarton','closedCartons','loosePieces','expiryDate','searchBox']
+    .forEach(attachLiveConvert);
+
+  // معاينات حية
+  ['closedCartons','loosePieces','unitsPerCarton'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', updateTotalPreview);
+  });
+  document.getElementById('expiryDate').addEventListener('input', updateExpiryPreview);
+  document.getElementById('pieceBarcode').addEventListener('input', autoFillFromBarcode);
+  document.getElementById('cartonBarcode').addEventListener('input', autoFillFromBarcode);
+  document.getElementById('searchBox').addEventListener('input', render);
+
+  // الأزرار
+  document.getElementById('saveBtn').addEventListener('click', saveEntry);
+  document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
+  document.getElementById('exportBtn').addEventListener('click', exportExcel);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+
+  // التبويبات
+  document.getElementById('tabBatches').addEventListener('click', function(){
+    currentTab = 'batches';
+    this.classList.add('active');
+    document.getElementById('tabProducts').classList.remove('active');
+    render();
+  });
+  document.getElementById('tabProducts').addEventListener('click', function(){
+    currentTab = 'products';
+    this.classList.add('active');
+    document.getElementById('tabBatches').classList.remove('active');
+    render();
+  });
+
+  // أزرار تعديل/حذف داخل القائمة (تفويض حدث واحد)
+  document.getElementById('listContainer').addEventListener('click', function(e){
+    var t = e.target;
+    if(t && t.getAttribute){
+      var editId = t.getAttribute('data-edit');
+      var delId = t.getAttribute('data-del');
+      if(editId) startEdit(editId);
+      else if(delId) deleteEntry(delId);
+    }
+  });
+
+  updateTotalPreview();
+  updateExpiryPreview();
+
+  // تحميل البيانات (لاتزامني ببيئة كلود) ثم عرضها
+  loadData(function(){
+    updateBarcodeInfo();
+    render();
+    // مؤشر النجاح: الجافاسكربت شغال والتطبيق جاهز
+    var st = document.getElementById('jsStatus');
+    var modeTxt = storageMode === 'artifact' ? 'حفظ دائم عبر كلود ✅'
+               : storageMode === 'local' ? 'حفظ دائم بالمتصفح ✅'
+               : 'حفظ مؤقت فقط ⚠️';
+    st.innerHTML = '✅ التطبيق شغال | ' + modeTxt;
+    st.style.background = 'rgba(255,255,255,.25)';
+  });
+}
+
+function safeInit(){
+  try{
+    init();
+  }catch(err){
+    // أي خطأ يظهر على الشاشة بدل ما يفشل بصمت
+    try{
+      var st = document.getElementById('jsStatus');
+      st.textContent = '❌ خطأ تقني: ' + err.message;
+      st.style.background = '#7a1f14';
+    }catch(e2){}
+  }
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', safeInit);
+} else {
+  safeInit();
+}
+</script>
+</body>
+</html>
