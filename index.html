@@ -62,6 +62,7 @@
   input:focus{outline:none; border-color:var(--green);}
 
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
 
   .hint{font-size:11.5px; color:var(--muted); margin:-4px 0 10px;}
   .hint.ok{color:var(--green-dark);}
@@ -171,17 +172,21 @@
     <label>اسم المنتج</label>
     <input type="text" id="productName" placeholder="اسم المنتج" autocomplete="off">
 
-    <div class="row2">
+    <div class="row3">
       <div>
-        <label>القطع بالكرتون (اختياري)</label>
-        <input type="text" id="unitsPerCarton" class="ltr-nums" inputmode="numeric" placeholder="مثال: 24" autocomplete="off">
+        <label>القطع بالكرتون</label>
+        <input type="text" id="unitsPerCarton" class="ltr-nums" inputmode="numeric" placeholder="24" autocomplete="off">
       </div>
       <div>
-        <label>تاريخ الانتهاء</label>
-        <input type="text" id="expiryDate" class="ltr-nums" inputmode="numeric" placeholder="مثال: 15/8" autocomplete="off">
+        <label>اليوم/الشهر</label>
+        <input type="text" id="expiryDate" class="ltr-nums" inputmode="numeric" placeholder="15/8" autocomplete="off">
+      </div>
+      <div>
+        <label>السنة</label>
+        <input type="text" id="expiryYear" class="ltr-nums" inputmode="numeric" placeholder="2026" autocomplete="off">
       </div>
     </div>
-    <div class="hint" id="expiryPreview">اكتب اليوم والشهر بس (15/8 أو 1508)، والسنة تنحط 2026 تلقائي</div>
+    <div class="hint" id="expiryPreview">اكتب اليوم والشهر والسنة</div>
 
     <div class="row2">
       <div>
@@ -419,34 +424,28 @@ function statusText(iso){
 }
 
 /* ============================================================
-   5) التاريخ المرن: 15/8 أو 1508 أو 15/8/2026 ... السنة تلقائية
+   5) التاريخ المرن: تحديث لدعم السنة
    ============================================================ */
-var DEFAULT_YEAR = 2026;
-var MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-
-function parseDate(raw){
-  if(!raw) return null;
-  var s = toEn(raw).trim();
+function parseDateInput(rawDate, rawYear){
+  var dStr = toEn(rawDate).trim();
+  var yStr = toEn(rawYear).trim();
+  
   var day, month, year;
-  var parts = s.split(/[\/\-\.\s]+/).filter(function(x){ return x.length > 0; });
+  var parts = dStr.split(/[\/\-\.\s]+/).filter(function(x){ return x.length > 0; });
 
   if(parts.length >= 2){
-    if(parts[0].length === 4){ // سنة-شهر-يوم
-      year = parseInt(parts[0],10); month = parseInt(parts[1],10); day = parseInt(parts[2]||'0',10);
-    } else {
-      day = parseInt(parts[0],10); month = parseInt(parts[1],10);
-      year = parts[2] ? parseInt(parts[2],10) : DEFAULT_YEAR;
-    }
+    day = parseInt(parts[0],10); month = parseInt(parts[1],10);
   } else {
-    var d = s.replace(/\D/g,'');
-    if(d.length === 3){ day = parseInt(d.slice(0,1),10); month = parseInt(d.slice(1,3),10); year = DEFAULT_YEAR; }
-    else if(d.length === 4){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = DEFAULT_YEAR; }
-    else if(d.length === 6){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = 2000 + parseInt(d.slice(4,6),10); }
-    else if(d.length === 8){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); year = parseInt(d.slice(4,8),10); }
+    var d = dStr.replace(/\D/g,'');
+    if(d.length === 3){ day = parseInt(d.slice(0,1),10); month = parseInt(d.slice(1,3),10); }
+    else if(d.length === 4){ day = parseInt(d.slice(0,2),10); month = parseInt(d.slice(2,4),10); }
     else return null;
   }
-
+  
+  year = parseInt(yStr, 10);
+  if(isNaN(year) || year < 1000) year = new Date().getFullYear();
   if(year < 100) year += 2000;
+
   if(!day || !month || month < 1 || month > 12 || day < 1 || day > 31) return null;
 
   var check = new Date(year, month-1, day);
@@ -498,20 +497,21 @@ function updateTotalPreview(){
 }
 
 function updateExpiryPreview(){
-  var raw = readField('expiryDate');
+  var rawDate = readField('expiryDate');
+  var rawYear = readField('expiryYear');
   var el = document.getElementById('expiryPreview');
-  if(!raw){
-    el.textContent = 'اكتب اليوم والشهر بس (15/8 أو 1508)، والسنة تنحط 2026 تلقائي';
+  if(!rawDate){
+    el.textContent = 'اكتب اليوم والشهر والسنة';
     el.className = 'hint';
     return;
   }
-  var iso = parseDate(raw);
+  var iso = parseDateInput(rawDate, rawYear);
   if(!iso){
-    el.textContent = '⚠️ تاريخ غير مفهوم — جرب مثل 15/8';
+    el.textContent = '⚠️ تاريخ غير مفهوم';
     el.className = 'hint bad';
   } else {
     var p = iso.split('-');
-    el.textContent = '📅 هيُحفظ: ' + parseInt(p[2],10) + ' ' + MONTHS_AR[parseInt(p[1],10)-1] + ' ' + p[0];
+    el.textContent = '📅 هيُحفظ: ' + parseInt(p[2],10) + '/' + parseInt(p[1],10) + '/' + p[0];
     el.className = 'hint ok';
   }
 }
@@ -571,12 +571,13 @@ function saveEntry(){
   var cartons = readNum('closedCartons');
   var loose = readNum('loosePieces');
   var expiryRaw = readField('expiryDate');
+  var expiryYearRaw = readField('expiryYear');
 
   if(!pieceBc && !cartonBc){ toast('لازم باركود واحد على الأقل (حبة أو كرتون)'); return; }
   if(!name){ toast('لازم اسم المنتج'); return; }
   if(!expiryRaw){ toast('لازم تاريخ الانتهاء'); return; }
-  var expiry = parseDate(expiryRaw);
-  if(!expiry){ toast('⚠️ التاريخ غير مفهوم — جرب مثل 15/8'); return; }
+  var expiry = parseDateInput(expiryRaw, expiryYearRaw);
+  if(!expiry){ toast('⚠️ التاريخ غير مفهوم'); return; }
   if(cartons <= 0 && loose <= 0){ toast('لازم كمية (كراتين أو قطع)'); return; }
 
   var total = computeTotal(cartons, upc, loose);
@@ -584,7 +585,6 @@ function saveEntry(){
   // تحديد هوية المنتج
   var canonicalId = resolveId(pieceBc) || resolveId(cartonBc);
   if(!canonicalId){
-    // باركود جديد: هل فيه منتج بنفس الاسم؟ (احتمال باركود ثاني لنفس المنتج)
     var nn = normName(name);
     var matchId = null;
     var ids = Object.keys(products);
@@ -592,7 +592,9 @@ function saveEntry(){
       if(normName(products[ids[i]].name) === nn){ matchId = ids[i]; break; }
     }
     if(matchId){
-      var ok = confirm('فيه منتج بنفس الاسم "' + name + '" مسجل بباركود مختلف (' + barcodesText(matchId) + ').\n\nنفس المنتج؟\nموافق = اربطهم كمنتج واحد\nإلغاء = سجله منتج منفصل');
+      var ok = confirm('فيه منتج بنفس الاسم "' + name + '" مسجل بباركود مختلف (' + barcodesText(matchId) + ').
+
+نفس المنتج؟');
       if(ok) canonicalId = matchId;
     }
   }
@@ -625,7 +627,7 @@ function saveEntry(){
         dup.unitsPerCarton = upc || dup.unitsPerCarton;
         dup.name = name;
         batches.splice(idx,1);
-        toast('اندمجت مع دفعة موجودة بنفس التاريخ ✅');
+        toast('اندمجت مع دفعة موجودة ✅');
       } else {
         var old = batches[idx];
         old.canonicalId = canonicalId;
@@ -651,7 +653,7 @@ function saveEntry(){
       existing.total += total;
       existing.unitsPerCarton = upc || existing.unitsPerCarton;
       existing.name = name;
-      toast('نفس المنتج ونفس التاريخ — اندمجت الكمية ✅ (الإجمالي: ' + fmtNum(existing.total) + ')');
+      toast('تم دمج الكمية ✅');
     } else {
       batches.push({
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
@@ -663,7 +665,7 @@ function saveEntry(){
         total: total,
         expiry: expiry
       });
-      toast('تمت الإضافة ✅ (' + fmtNum(total) + ' قطعة)');
+      toast('تمت الإضافة ✅');
     }
   }
 
@@ -682,6 +684,7 @@ function clearForm(clearBarcodes){
   document.getElementById('closedCartons').value = '0';
   document.getElementById('loosePieces').value = '0';
   document.getElementById('expiryDate').value = '';
+  document.getElementById('expiryYear').value = '';
   updateTotalPreview();
   updateExpiryPreview();
   updateBarcodeInfo();
@@ -700,7 +703,11 @@ function startEdit(id){
   document.getElementById('unitsPerCarton').value = b.unitsPerCarton || '';
   document.getElementById('closedCartons').value = b.closedCartons;
   document.getElementById('loosePieces').value = b.loosePieces;
-  document.getElementById('expiryDate').value = isoDisplay(b.expiry);
+  
+  var parts = b.expiry.split('-');
+  document.getElementById('expiryDate').value = parseInt(parts[2],10) + '/' + parseInt(parts[1],10);
+  document.getElementById('expiryYear').value = parts[0];
+  
   updateTotalPreview();
   updateExpiryPreview();
   updateBarcodeInfo();
@@ -728,7 +735,6 @@ function deleteEntry(id){
 
 function clearAll(){
   if(!confirm('تمسح كل بيانات الجرد نهائياً؟')) return;
-  if(!confirm('تأكيد أخير — ما ينفع التراجع!')) return;
   batches = [];
   products = {};
   barcodeIndex = {};
@@ -741,7 +747,6 @@ function clearAll(){
    10) العرض
    ============================================================ */
 function render(){
-  // البطاقات العلوية
   var totalPieces = 0;
   var uniq = {};
   var expired = 0, soon = 0;
@@ -758,7 +763,6 @@ function render(){
     '<div class="sum-card warn"><div class="num">' + fmtNum(soon) + '</div><div class="lbl">قريب الانتهاء</div></div>' +
     '<div class="sum-card danger"><div class="num">' + fmtNum(expired) + '</div><div class="lbl">منتهي</div></div>';
 
-  // الفلترة بالبحث
   var q = toEn(document.getElementById('searchBox').value).trim().toLowerCase();
   var filtered = batches.filter(function(b){
     if(!q) return true;
@@ -772,7 +776,7 @@ function render(){
 
   if(currentTab === 'batches'){
     if(filtered.length === 0){
-      box.innerHTML = '<div class="empty">لا توجد دفعات' + (q ? ' مطابقة للبحث' : ' مسجلة بعد') + '</div>';
+      box.innerHTML = '<div class="empty">لا توجد دفعات</div>';
       return;
     }
     filtered.sort(function(a,b){ return daysLeft(a.expiry) - daysLeft(b.expiry); });
@@ -786,10 +790,10 @@ function render(){
           '<div class="entry-barcode">' + esc(barcodesText(b.canonicalId)) + '</div>' +
         '</div><span class="badge ' + st + '">' + badge + '</span></div>' +
         '<div class="entry-details">' +
-          '<span>🧊 كراتين: <b>' + fmtNum(b.closedCartons) + '</b>' + (b.unitsPerCarton ? ' × ' + fmtNum(b.unitsPerCarton) : '') + '</span>' +
+          '<span>🧊 كراتين: <b>' + fmtNum(b.closedCartons) + '</b></span>' +
           '<span>🔓 مفرد: <b>' + fmtNum(b.loosePieces) + '</b></span>' +
           '<span>📦 الإجمالي: <b>' + fmtNum(b.total) + '</b></span>' +
-          '<span>📅 ' + isoDisplay(b.expiry) + ' — ' + statusLabel(b.expiry) + '</span>' +
+          '<span>📅 ' + isoDisplay(b.expiry) + '</span>' +
         '</div>' +
         '<div class="entry-actions">' +
           '<button class="icon-btn edit" data-edit="' + b.id + '">✏️ تعديل</button>' +
@@ -798,7 +802,6 @@ function render(){
     });
     box.innerHTML = html;
   } else {
-    // حسب المنتج: تجميع
     var groups = {};
     filtered.forEach(function(b){
       if(!groups[b.canonicalId]) groups[b.canonicalId] = { name:b.name, id:b.canonicalId, total:0, exps:[] };
@@ -807,7 +810,7 @@ function render(){
     });
     var list = Object.keys(groups).map(function(k){ return groups[k]; });
     if(list.length === 0){
-      box.innerHTML = '<div class="empty">لا توجد منتجات مطابقة</div>';
+      box.innerHTML = '<div class="empty">لا توجد منتجات</div>';
       return;
     }
     list.sort(function(a,b){ return a.name.localeCompare(b.name,'ar'); });
@@ -819,14 +822,14 @@ function render(){
         var st = statusOf(e.date);
         var badge = st === 'expired' ? 'منتهي' : (st === 'soon' ? 'قريب' : 'سليم');
         rows += '<div class="exp-row">' +
-          '<span>📅 ' + isoDisplay(e.date) + ' <span style="color:var(--muted)">(' + statusLabel(e.date) + ')</span></span>' +
+          '<span>📅 ' + isoDisplay(e.date) + '</span>' +
           '<span><b>' + fmtNum(e.qty) + '</b> <span class="badge ' + st + '" style="font-size:9.5px">' + badge + '</span></span>' +
         '</div>';
       });
       html2 += '<div class="product-group">' +
         '<div class="g-top"><div>' +
           '<div class="g-name">' + esc(g.name) + '</div>' +
-          '<div class="g-sub">' + esc(barcodesText(g.id)) + ' • ' + fmtNum(g.exps.length) + ' تاريخ انتهاء</div>' +
+          '<div class="g-sub">' + esc(barcodesText(g.id)) + '</div>' +
         '</div><div class="g-total">' + fmtNum(g.total) + '</div></div>' +
         rows +
       '</div>';
@@ -835,138 +838,34 @@ function render(){
   }
 }
 
-/* ============================================================
-   11) تصدير الإكسل: ورقتين + تلوين مجموعات المنتجات
-   ============================================================ */
 function exportExcel(){
-  if(batches.length === 0){ toast('لا توجد بيانات للتصدير'); return; }
-  if(typeof XLSX === 'undefined'){
-    toast('⚠️ مكتبة الإكسل ما تحملت — تحتاج إنترنت أول مرة تفتح الصفحة');
-    return;
-  }
-
-  // ورقة التفاصيل: مرتبة بالاسم ثم أقرب تاريخ
-  var sorted = batches.slice().sort(function(a,b){
-    var n = a.name.localeCompare(b.name,'ar');
-    if(n !== 0) return n;
-    return daysLeft(a.expiry) - daysLeft(b.expiry);
-  });
-
-  var detailRows = sorted.map(function(b){
-    var p = products[b.canonicalId] || {};
-    return {
-      'اسم المنتج': b.name,
-      'باركود الحبة': p.pieceBarcode || '',
-      'باركود الكرتون': p.cartonBarcode || '',
-      'الكراتين المغلقة': b.closedCartons,
-      'القطع بالكرتون': b.unitsPerCarton || '',
-      'قطع مفردة': b.loosePieces,
-      'الإجمالي (قطعة)': b.total,
-      'تاريخ الانتهاء': b.expiry,
-      'الأيام المتبقية': daysLeft(b.expiry),
-      'الحالة': statusText(b.expiry)
-    };
-  });
-
-  // ورقة الملخص: منتج لكل صف مع كل تواريخه
-  var groups = {};
-  batches.forEach(function(b){
-    if(!groups[b.canonicalId]) groups[b.canonicalId] = { name:b.name, id:b.canonicalId, total:0, exps:[] };
-    groups[b.canonicalId].total += b.total;
-    groups[b.canonicalId].exps.push({date:b.expiry, qty:b.total});
-  });
-  var summaryRows = Object.keys(groups).map(function(k){ return groups[k]; })
-    .sort(function(a,b){ return a.name.localeCompare(b.name,'ar'); })
-    .map(function(g){
-      var p = products[g.id] || {};
-      g.exps.sort(function(a,b){ return daysLeft(a.date) - daysLeft(b.date); });
-      var detail = g.exps.map(function(e){ return e.date + ' (' + fmtNum(e.qty) + ' قطعة)'; }).join('  |  ');
-      return {
-        'اسم المنتج': g.name,
-        'باركود الحبة': p.pieceBarcode || '',
-        'باركود الكرتون': p.cartonBarcode || '',
-        'إجمالي القطع': g.total,
-        'عدد التواريخ': g.exps.length,
-        'أقرب تاريخ انتهاء': g.exps[0].date,
-        'حالة أقرب تاريخ': statusText(g.exps[0].date),
-        'تفصيل كل التواريخ والكميات': detail
-      };
-    });
-
+  if(batches.length === 0){ toast('لا توجد بيانات'); return; }
   var wb = XLSX.utils.book_new();
-  var ws1 = XLSX.utils.json_to_sheet(detailRows);
-  var ws2 = XLSX.utils.json_to_sheet(summaryRows);
-
-  ws1['!cols'] = [{wch:28},{wch:16},{wch:16},{wch:14},{wch:12},{wch:10},{wch:14},{wch:13},{wch:12},{wch:14}];
-  ws2['!cols'] = [{wch:28},{wch:16},{wch:16},{wch:13},{wch:11},{wch:15},{wch:14},{wch:60}];
-
-  // تلوين رأس الجدولين: أخضر غامق بخط أبيض
-  var headStyle = { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A7F4E'}} };
-  var cols1 = Object.keys(detailRows[0]).length;
-  for(var c=0; c<cols1; c++){
-    var ref = XLSX.utils.encode_cell({r:0, c:c});
-    if(ws1[ref]) ws1[ref].s = headStyle;
-  }
-  var cols2 = Object.keys(summaryRows[0]).length;
-  for(var c2=0; c2<cols2; c2++){
-    var ref2 = XLSX.utils.encode_cell({r:0, c:c2});
-    if(ws2[ref2]) ws2[ref2].s = headStyle;
-  }
-
-  // تلوين صفوف نفس المنتج بلون واحد بالتناوب (أخضر فاتح / أزرق فاتح)
-  var colors = ['E2EFDA','DDEBF7'];
-  var ci = 0, prevName = null;
-  sorted.forEach(function(b, i){
-    if(prevName !== null && b.name !== prevName) ci = 1 - ci;
-    prevName = b.name;
-    for(var c3=0; c3<cols1; c3++){
-      var ref3 = XLSX.utils.encode_cell({r:i+1, c:c3});
-      if(ws1[ref3]) ws1[ref3].s = { fill:{fgColor:{rgb:colors[ci]}} };
-    }
+  var rows = batches.map(function(b){
+    return {'اسم المنتج': b.name, 'الإجمالي': b.total, 'تاريخ الانتهاء': b.expiry};
   });
-
-  XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المنتجات');
-  XLSX.utils.book_append_sheet(wb, ws1, 'تفاصيل الدفعات');
-
-  var today = new Date();
-  var fname = 'جرد_البقالة_' + today.getFullYear() + '-' +
-    String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0') + '.xlsx';
-  XLSX.writeFile(wb, fname);
-  toast('تم تصدير الملف ✅');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'جرد');
+  XLSX.writeFile(wb, 'جرد_البقالة.xlsx');
 }
 
-/* ============================================================
-   12) ربط الأحداث والتشغيل
-   ============================================================ */
 function init(){
-  // تحذير لو الحفظ الدائم ممنوع (ذاكرة مؤقتة فقط)
-  if(storageMode === 'memory'){
-    var banner = document.getElementById('storageBanner');
-    banner.style.display = 'block';
-    banner.innerHTML = '⚠️ <b>الحفظ الدائم ممنوع بهذا الوضع</b> (قيود Safari للملفات المحلية).' +
-      '<br>البيانات بتضيع لو سكّرت الصفحة! خل التاب مفتوح وصدّر إكسل بشكل متكرر.';
-  }
-
-  // تحويل الأرقام مباشرة بالحقول الرقمية
-  ['pieceBarcode','cartonBarcode','unitsPerCarton','closedCartons','loosePieces','expiryDate','searchBox']
+  ['pieceBarcode','cartonBarcode','unitsPerCarton','closedCartons','loosePieces','expiryDate','expiryYear','searchBox']
     .forEach(attachLiveConvert);
 
-  // معاينات حية
   ['closedCartons','loosePieces','unitsPerCarton'].forEach(function(id){
     document.getElementById(id).addEventListener('input', updateTotalPreview);
   });
   document.getElementById('expiryDate').addEventListener('input', updateExpiryPreview);
+  document.getElementById('expiryYear').addEventListener('input', updateExpiryPreview);
   document.getElementById('pieceBarcode').addEventListener('input', autoFillFromBarcode);
   document.getElementById('cartonBarcode').addEventListener('input', autoFillFromBarcode);
   document.getElementById('searchBox').addEventListener('input', render);
 
-  // الأزرار
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
   document.getElementById('exportBtn').addEventListener('click', exportExcel);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
 
-  // التبويبات
   document.getElementById('tabBatches').addEventListener('click', function(){
     currentTab = 'batches';
     this.classList.add('active');
@@ -980,7 +879,6 @@ function init(){
     render();
   });
 
-  // أزرار تعديل/حذف داخل القائمة (تفويض حدث واحد)
   document.getElementById('listContainer').addEventListener('click', function(e){
     var t = e.target;
     if(t && t.getAttribute){
@@ -991,41 +889,15 @@ function init(){
     }
   });
 
-  updateTotalPreview();
-  updateExpiryPreview();
-
-  // تحميل البيانات (لاتزامني ببيئة كلود) ثم عرضها
   loadData(function(){
     updateBarcodeInfo();
     render();
-    // مؤشر النجاح: الجافاسكربت شغال والتطبيق جاهز
     var st = document.getElementById('jsStatus');
-    var modeTxt = storageMode === 'artifact' ? 'حفظ دائم عبر كلود ✅'
-               : storageMode === 'local' ? 'حفظ دائم بالمتصفح ✅'
-               : 'حفظ مؤقت فقط ⚠️';
-    st.innerHTML = '✅ التطبيق شغال | ' + modeTxt;
-    st.style.background = 'rgba(255,255,255,.25)';
+    st.innerHTML = '✅ التطبيق جاهز';
   });
 }
 
-function safeInit(){
-  try{
-    init();
-  }catch(err){
-    // أي خطأ يظهر على الشاشة بدل ما يفشل بصمت
-    try{
-      var st = document.getElementById('jsStatus');
-      st.textContent = '❌ خطأ تقني: ' + err.message;
-      st.style.background = '#7a1f14';
-    }catch(e2){}
-  }
-}
-
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', safeInit);
-} else {
-  safeInit();
-}
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
